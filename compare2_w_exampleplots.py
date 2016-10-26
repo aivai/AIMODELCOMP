@@ -86,10 +86,10 @@ def compare_fi_curves(ve_paths, file_prefix):
     slope_cols = [m + "_slope_pct_diff" for m in BASE_ORDER]
     rheo_cols = [m + "_rheo_pct_diff" for m in BASE_ORDER]
 
-    plot_comparison(df.ix[:, slope_cols] * 100., "fI slope (% diff)", order=slope_cols, zeroline=True, filename="fi_slope.png", file_prefix=dendrite_type)
-    plot_comparison(df.ix[:, slope_cols] * 100., "fI slope (% diff)", order=slope_cols, xlim=(-100, 100), zeroline=True, filename="fi_slope_zoomed.png", file_prefix=dendrite_type)
-    plot_comparison(df.ix[:, rheo_cols] * 100., "rheobase (% diff)", order=rheo_cols, zeroline=True, filename="fi_rheo.png", file_prefix=dendrite_type)
-    plot_comparison(df.ix[:, rheo_cols] * 100., "rheobase (% diff)", order=rheo_cols, xlim=(-100, 100), zeroline=True, filename="fi_rheo_zoomed.png", file_prefix=dendrite_type)
+    plot_comparison(df.ix[:, slope_cols] * 100., "fI slope (% diff)", order=slope_cols, zeroline=True, filename="fi_slope.png", file_prefix=file_prefix)
+    plot_comparison(df.ix[:, slope_cols] * 100., "fI slope (% diff)", order=slope_cols, xlim=(-100, 100), zeroline=True, filename="fi_slope_zoomed.png", file_prefix=file_prefix)
+    plot_comparison(df.ix[:, rheo_cols] * 100., "rheobase (% diff)", order=rheo_cols, zeroline=True, filename="fi_rheo.png", file_prefix=file_prefix)
+    plot_comparison(df.ix[:, rheo_cols] * 100., "rheobase (% diff)", order=rheo_cols, xlim=(-100, 100), zeroline=True, filename="fi_rheo_zoomed.png", file_prefix=file_prefix)
 
 
 def compare_fi_curve(input_dict):
@@ -126,8 +126,8 @@ def compare_ramp_latencies(ve_paths, file_prefix):
     for model_type in NEURONAL_MODEL_TEMPLATES:
         df[model_type + "_latency_pct_diff"] = (df[model_type + "_ramp_latency"] - df["expt_ramp_latency"]) / df["expt_ramp_latency"]
     cols = [m + "_latency_pct_diff" for m in BASE_ORDER]
-    plot_comparison(df.ix[:, cols] * 100., "ramp latency (% diff)", order=cols, zeroline=True, filename="ramp_latency.png", file_prefix=dendrite_type)
-    plot_comparison(df.ix[:, cols] * 100., "ramp latency (% diff)", order=cols, zeroline=True, xlim=(-100, 100), filename="ramp_latency_zoomed.png", file_prefix=dendrite_type)
+    plot_comparison(df.ix[:, cols] * 100., "ramp latency (% diff)", order=cols, zeroline=True, filename="ramp_latency.png", file_prefix=file_prefix)
+    plot_comparison(df.ix[:, cols] * 100., "ramp latency (% diff)", order=cols, zeroline=True, xlim=(-100, 100), filename="ramp_latency_zoomed.png", file_prefix=file_prefix)
 
 
 def compare_ramp_latency(input_dict):
@@ -163,8 +163,8 @@ def compare_ap_dims(ve_paths, biophys_ids, file_prefix):
         df[model_type + "_height_pct_diff"] = (df[model_type + "_height"] - df["expt_height"]) / df["expt_height"]
     width_cols = [m + "_width_pct_diff" for m in biophys_models]
     height_cols = [m + "_height_pct_diff" for m in biophys_models]
-    plot_comparison(df.ix[:, width_cols] * 100., "AP width (% diff)", ylabels = ["Biophys perisomatic", "Biophys all active"], order=width_cols, zeroline=True, filename="ap_width.png", file_prefix=dendrite_type)
-    plot_comparison(df.ix[:, height_cols] * 100., "AP height (% diff)", ylabels = ["Biophys perisomatic", "Biophys all active"], order=height_cols, zeroline=True, filename="ap_height.png", file_prefix=dendrite_type)
+    plot_comparison(df.ix[:, width_cols] * 100., "AP width (% diff)", ylabels = ["Biophys perisomatic", "Biophys all active"], order=width_cols, zeroline=True, filename="ap_width.png", file_prefix=file_prefix)
+    plot_comparison(df.ix[:, height_cols] * 100., "AP height (% diff)", ylabels = ["Biophys perisomatic", "Biophys all active"], order=height_cols, zeroline=True, filename="ap_height.png", file_prefix=file_prefix)
 
 
 def compare_ap_dim(input_dict):
@@ -236,48 +236,70 @@ def expt_ap_dim(specimen_id):
 
 
 def expt_tau(specimen_id):
+    #print(chr(27) + "[2J") # To clear terminal screen    
+    #print "START EXPT_TAU" + str(specimen_id)
     expt_taus = []
     data_set = expt_data_set(specimen_id)
     long_square_sweeps = lims_utils.get_sweeps_of_type("C1LSCOARSE", specimen_id, passed_only=True)
-    
+    #print "expt specimen id= " + str(specimen_id)
     for sweep in long_square_sweeps:
+        print str(specimen_id) + " expt_sweep_number: " + str(sweep)
         if (data_set.get_sweep_metadata(sweep)["aibs_stimulus_amplitude_pa"] < 0):
             v, i, t = lims_utils.get_sweep_v_i_t_from_set(data_set, sweep)
             sweep_feat = EphysSweepFeatureExtractor(t, v) # Get time and voltage of each hyperpolarizing sweep
-            expt_taus.append(sweep_feat.estimate_time_constant()) # Append time constant of each sweep to list
+            try: 
+                sweep_feat.estimate_time_constant()  # Try statement included because estimate_time_constant errors on some sweeps ("could not find interval for time constant estimate")          
+            except:
+                continue
+            else:
+                expt_taus.append(sweep_feat.estimate_time_constant()) # Append time constant of each sweep to list
     mean_expt_tau = np.nanmean(expt_taus) # Mean time constant for this cell
-    
+    #print "mean_expt_tau= " + str(mean_expt_tau)
     return mean_expt_tau
 
 def ve_tau(specimen_id, ve_path):
+    #print(chr(27) + "[2J") # To clear terminal screen 
+    print "START VE_TAU " + str(specimen_id) + " " + str(ve_path)
     expt_taus = []
     data_set = NwbDataSet(ve_path)
     long_square_sweeps = lims_utils.get_sweeps_of_type("C1LSCOARSE", specimen_id, passed_only=True)
-    
+    print "ve specimen id= " + str(specimen_id)
     for sweep in long_square_sweeps: 
-        if (data_set.get_sweep_metadata(sweep)["aibs_stimulus_amplitude_pa"] < 0):
-            v, i, t = lims_utils.get_sweep_v_i_t_from_set(data_set, sweep)
-            sweep_feat = EphysSweepFeatureExtractor(t, v) # Get time and voltage of each hyperpolarizing sweep
-            expt_taus.append(sweep_feat.estimate_time_constant()) # Append time constant of each sweep to list
+        #print "ve_sweep_number: " + str(sweep)
+        #print(data_set.get_sweep_metadata(sweep))
+        try: 
+            (data_set.get_sweep_metadata(sweep)["aibs_stimulus_amplitude_pa"])
+        except:
+            continue
+        else:
+            if (data_set.get_sweep_metadata(sweep)["aibs_stimulus_amplitude_pa"] < 0):
+                v, i, t = lims_utils.get_sweep_v_i_t_from_set(data_set, sweep)
+                sweep_feat = EphysSweepFeatureExtractor(t, v) # Get time and voltage of each hyperpolarizing sweep
+                if np.isnan(sweep_feat):
+                    continue
+                else:
+                    expt_taus.append(sweep_feat.estimate_time_constant()) # Append time constant of each sweep to list
     mean_expt_tau = np.nanmean(expt_taus) # Mean time constant for this cell
-    
+    print "mean_ve_tau= " + str(mean_expt_tau)
     return mean_expt_tau
 
 def compare_taus(ve_paths, file_prefix):
+    print "START COMPARE_TAUS"    
     ve_df = DataFrame(ve_paths)
     
     input_list = ve_df.reset_index().to_dict("records")
     pool = Pool()
-    data_list = pool.map(compare_tau, input_list) ###### ERROR HERE. Probably getting passed a model that was not run on that cell, so getting nan input. Fix by checking if model type exists first (though looks like already doing this in compare tau function below...)
+    data_list = pool.map(compare_tau, input_list) ###### ERROR HERE. 
     df = DataFrame(data_list)
 
     for model_type in NEURONAL_MODEL_TEMPLATES:
         df[model_type + "_tau_diff"] = (df[model_type + "_tau"] - df["expt_tau"]) / df["expt_tau"]
     tau_cols = [m + "_tau_diff" for m in BASE_ORDER]
-    plot_comparison(df.ix[:, tau_cols] * 100., "Time Constant (% diff)", order=tau_cols, zeroline=True, filename="tau.png", file_prefix=dendrite_type)
+    plot_comparison(df.ix[:, tau_cols] * 100., "Time Constant (% diff)", order=tau_cols, zeroline=True, filename="tau.png", file_prefix=file_prefix)
 
 
 def compare_tau(input_dict):
+    print "START COMPARE_TAU " 
     specimen_key = "index"
     specimen_id = input_dict[specimen_key]
     mean_expt_tau = expt_tau(specimen_id)
@@ -286,14 +308,15 @@ def compare_tau(input_dict):
         "tau": mean_expt_tau
     }
     for model_type in input_dict:
+        print str(specimen_id) + " model type =" + str(model_type)
         if model_type == specimen_key:
             continue
         if type(input_dict[model_type]) != str:
             continue
         if not os.path.exists(input_dict[model_type]):
             continue
-        if np.isnan(input_dict[model_type]) == True:
-            continue
+        #if np.isnan(input_dict[model_type]) == True:
+         #   continue
         ve_path = input_dict[model_type]
         info[model_type + "_tau"] = ve_tau(specimen_id, ve_path)
     return info
